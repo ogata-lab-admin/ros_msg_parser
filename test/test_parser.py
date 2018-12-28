@@ -8,12 +8,20 @@ class TestParser(unittest.TestCase):
     def setUp(self):
         p = msg_parser.Parser()
 
-        s = '''
-float32 foo
-int32 goo '''
+        s = '''# Test Parser Msg Data
+float32 foo # Foo Comment
+int32 goo # Hoge Comment'''
         self._m = p.parse_str('test_pkg/hogeType', s)
 
-    
+    def test_comment(self):
+        m = self._m
+        self.assertEqual(m.comment, "Test Parser Msg Data")
+
+    def test_value_comment(self):
+        m = self._m
+        f = m.members.findByName('foo')
+        self.assertEqual(f.comment, 'Foo Comment')
+        
     def test_foo(self):
         m = self._m
         f = m.members.findByName('foo')

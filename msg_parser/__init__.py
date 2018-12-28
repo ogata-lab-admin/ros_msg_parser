@@ -53,6 +53,9 @@ class MsgMemberList(object):
         for m in self._m:
             func(m)
 
+    def map(self, func):
+        return [func(m) for m in self._m]
+    
     def filter(self, func):
         return [m for m in self._m if func(m)]
                 
@@ -109,9 +112,10 @@ class MsgType(object):
 
 class MsgMember(object):
     
-    def __init__(self, type, name):
+    def __init__(self, type, name, comment=''):
         self._type = type
         self._name = name
+        self._comment = comment
 
     @property
     def name(self):
@@ -120,6 +124,10 @@ class MsgMember(object):
     @property
     def type(self):
         return self._type
+
+    @property
+    def comment(self):
+        return self._comment
     
 class MsgObject(object):
 
@@ -127,10 +135,18 @@ class MsgObject(object):
         self._name = name
         self._pkgName = pkgName
         self._members = MsgMemberList()
+        self._comment = ''
 
+    def addComment(self, c):
+        self._comment = c
+        
     def addMember(self, m):
         self._members.append(m)
 
+    @property
+    def comment(self):
+        return self._comment
+    
     @property
     def packageName(self):
         return self._pkgName
@@ -156,19 +172,35 @@ class Parser(object):
             raise InvalidArgument('Invalid Package/Filename format(%s)' % name)
 
         msg = MsgObject(p[0], p[1])
-
+        comment = None
+        commentLines = []
         for i, line in enumerate(argstr.split('\n')):
             try:
                 line = line.strip()
-                if len(line) == 0: # empty line
+                if line.startswith('#') and comment is None:
+                    commentLines.append(line[1:].strip())
                     continue
+                
+                if len(line) == 0: # empty line
+                    if comment is None:
+                        comment = '\n'.join(commentLines)
+                    continue
+                if comment is None:
+                    comment = '\n'.join(commentLines)
+
+                value_comment = ''
+                tokens = line.strip().split('#')
+                if len(tokens) > 1:
+                    line = tokens[0]
+                    value_comment = tokens[1].strip()
                 ms = line.strip().split()
                 if len(ms) != 2:
                     raise InvalidArgument('Invalid Syntax(line=%s)' % i)
-                m = MsgMember(MsgType(ms[0]), ms[1])
+                m = MsgMember(MsgType(ms[0]), ms[1], value_comment)
                 msg.addMember(m)
             except MsgException, e:
                 e.addInfo(i, line)
                 raise e
+        msg.addComment(comment if comment else '')
         return msg
 
