@@ -15,11 +15,26 @@ _primitives = [
     'string',
     'time',
     'duration']
-   
-class InvalidPrimitiveTypename(Exception):
+
+class MsgException(Exception):
+    _msg = 'MsgException'
+
+    def addInfo(self, i, line):
+        self._i = i
+        self._line = line
+
+    def __str__(self):
+        return '%s(line=%d, str=%s)' % (self._msg, self._i, self._line)
+
+class InvalidInnerTypeName(MsgException):
+    _msg = 'InvalidInnerTypeName'
+    pass
+ 
+class InvalidPrimitiveTypeName(MsgException):
+    _msg = 'InvalidPrimitiveTypeName'
     pass
 
-class InvalidArgument(Exception):
+class InvalidArgument(MsgException):
     def __init__(self, msg):
         self._msg = msg
 
@@ -50,7 +65,43 @@ class MsgMemberList(object):
 
 class MsgType(object):
     def __init__(self, name):
+        self._is_primitive = False
+        self.__check_typename(name)
         self._name = name
+    
+    @property
+    def is_primitive(self):
+        return self._is_primitive
+
+    @property
+    def fullName(self):
+        return self._name
+
+    @property
+    def name(self):
+        if self.is_primitive:
+            return self._name
+        return self._name.split('/')[1]
+
+    @property
+    def packageName(self):
+        if self.is_primitive:
+            return None
+        return self._name.split('/')[0]
+
+    def __check_typename(self, n):
+        if n.find('/') >= 0:
+            ns = n.split('/')
+            if len(ns) < 2:
+                raise InvalidInnerTypeName()
+            elif len(ns) > 2:
+                raise InvalidInnerTypeName()
+            return
+        
+        if not n in _primitives:
+            raise InvalidPrimitiveTypeName
+        self._is_primitive = True
+        return
 
     def __str__(self):
         return self._name
@@ -107,14 +158,17 @@ class Parser(object):
         msg = MsgObject(p[0], p[1])
 
         for i, line in enumerate(argstr.split('\n')):
-            line = line.strip()
-            if len(line) == 0: # empty line
-                continue
-            ms = line.strip().split()
-            if len(ms) != 2:
-                raise InvalidArgument('Invalid Syntax(line=%s)' % i)
-            m = MsgMember(MsgType(ms[0]), ms[1])
-            msg.addMember(m)
-
+            try:
+                line = line.strip()
+                if len(line) == 0: # empty line
+                    continue
+                ms = line.strip().split()
+                if len(ms) != 2:
+                    raise InvalidArgument('Invalid Syntax(line=%s)' % i)
+                m = MsgMember(MsgType(ms[0]), ms[1])
+                msg.addMember(m)
+            except MsgException, e:
+                e.addInfo(i, line)
+                raise e
         return msg
 

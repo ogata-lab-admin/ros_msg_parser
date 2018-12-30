@@ -18,7 +18,7 @@ int32 goo '''
         m = self._m
         f = m.members.findByName('foo')
         self.assertIsNotNone(f)
-        self.assertEqual(str(f.type), 'float')
+        self.assertEqual(str(f.type), 'float32')
 
     def test_goo(self):
         m = self._m
@@ -39,13 +39,5 @@ int32 goo '''
         m = self._m
         self.assertEqual(m.name, 'hogeType')
 
-class TestException(unittest.TestCase):
-
-
-    def invalid_primitive(self):
-        p = msg_parser.Parser()
-        s = '''
-float foo '''
-        with self.assertRaises(msg_parser.InvalidPrimitiveTypeName) as s:
-            p.parse_str('test_pkg/hogeType', s)
-        
+if __name__ == '__main__':
+    uniittest.main()
