@@ -1,4 +1,24 @@
 
+
+_primitives = [
+    'bool',
+    'int8',
+    'uint8',
+    'int16',
+    'uint16',
+    'int32',
+    'uint32',
+    'int64',
+    'uint64',
+    'float32',
+    'float64',
+    'string',
+    'time',
+    'duration']
+   
+class InvalidPrimitiveTypename(Exception):
+    pass
+
 class InvalidArgument(Exception):
     def __init__(self, msg):
         self._msg = msg

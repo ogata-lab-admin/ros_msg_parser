@@ -9,7 +9,7 @@ class TestParser(unittest.TestCase):
         p = msg_parser.Parser()
 
         s = '''
-float foo
+float32 foo
 int32 goo '''
         self._m = p.parse_str('test_pkg/hogeType', s)
 
@@ -38,3 +38,14 @@ int32 goo '''
     def test_name(self):
         m = self._m
         self.assertEqual(m.name, 'hogeType')
+
+class TestException(unittest.TestCase):
+
+
+    def invalid_primitive(self):
+        p = msg_parser.Parser()
+        s = '''
+float foo '''
+        with self.assertRaises(msg_parser.InvalidPrimitiveTypeName) as s:
+            p.parse_str('test_pkg/hogeType', s)
+        
