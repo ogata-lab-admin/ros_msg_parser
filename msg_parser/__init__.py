@@ -1,4 +1,4 @@
-
+import traceback
 
 _primitives = [
     'bool',
@@ -160,16 +160,105 @@ class MsgObject(object):
         return self._members
 
 
+class SrvObject(object):
+
+    def __init__(self, pkgName, name):
+        self._name = name
+        self._pkgName = pkgName
+        self._comment = ''
+        self.arg = MsgObject(pkgName, name + '_arg')
+        self.returns = MsgObject(pkgName, name + '_returns')
+        
+    def addComment(self, c):
+        self._comment = c
+
+    @property
+    def comment(self):
+        return self._comment
+    
+    @property
+    def packageName(self):
+        return self._pkgName
+
+    @property
+    def name(self):
+        return self._name
+
+
 class Parser(object):
 
     def __init__(self):
         pass
 
-
-    def parse_str(self, name, argstr):
+    def __parse_name(self, name):
         p = name.split('/')
         if len(p) != 2:
             raise InvalidArgument('Invalid Package/Filename format(%s)' % name)
+        return p
+    
+    def parse_srv_str(self, name, argstr):
+        p = self.__parse_name(name)
+        srv = SrvObject(p[0], p[1])
+
+        comment = None
+        commentLines = []
+        commentPhase = 'srv'
+        argparsing = True
+        for i, line in enumerate(argstr.split('\n')):
+            try:
+                line = line.strip()
+                # print('%d:%s:%s:%s' % (i, line, comment, commentLines))
+                if line.startswith('#') and (not commentPhase is 'end'):
+                    commentLines.append(line[1:].strip())
+                    continue
+                
+                if comment is None:
+                    comment = '\n'.join(commentLines)
+                
+                if commentPhase == 'srv':
+                    srv.addComment(comment if comment else '')
+                    commentPhase = 'arg'
+                    comment = None
+                    commentLines = []
+                elif commentPhase == 'arg':
+                    srv.arg.addComment(comment if comment else '')
+                    commentPhase = 'end'
+                    comment = None
+                    commentLines = []
+                elif commentPhase == 'returns':
+                    srv.returns.addComment(comment if comment else '')
+                    commentPhase = 'end'
+                    
+                if line.startswith('-'):
+                    comment = None
+                    commentPhase = 'returns'
+                    argparsing = False
+                    continue
+
+                if len(line) == 0: continue
+
+                value_comment = ''
+                tokens = line.strip().split('#')
+                if len(tokens) > 1:
+                    line = tokens[0]
+                    value_comment = ''.join(tokens[1:]).strip()
+                ms = line.strip().split()
+                if len(ms) != 2:
+                    raise InvalidArgument('Invalid Syntax(lineNum=%s, line="%s",ms="%s", len(line)=%d)' % (i, line, ms, len(line)))
+                m = MsgMember(MsgType(ms[0]), ms[1], value_comment)
+                if argparsing:
+                    srv.arg.addMember(m)
+                else:
+                    srv.returns.addMember(m)
+            except MsgException, e:
+                traceback.print_exc()
+                e.addInfo(i, line)
+                raise e
+
+        return srv
+
+    def parse_str(self, name, argstr):
+        p = self.__parse_name(name)
 
         msg = MsgObject(p[0], p[1])
         comment = None
