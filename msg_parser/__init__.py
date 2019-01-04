@@ -166,8 +166,8 @@ class SrvObject(object):
         self._name = name
         self._pkgName = pkgName
         self._comment = ''
-        self.arg = MsgObject(pkgName, name + '_arg')
-        self.returns = MsgObject(pkgName, name + '_returns')
+        self.request = MsgObject(pkgName, name + '_arg')
+        self.response = MsgObject(pkgName, name + '_returns')
         
     def addComment(self, c):
         self._comment = c
@@ -207,7 +207,6 @@ class Parser(object):
         for i, line in enumerate(argstr.split('\n')):
             try:
                 line = line.strip()
-                # print('%d:%s:%s:%s' % (i, line, comment, commentLines))
                 if line.startswith('#') and (not commentPhase is 'end'):
                     commentLines.append(line[1:].strip())
                     continue
@@ -217,21 +216,21 @@ class Parser(object):
                 
                 if commentPhase == 'srv':
                     srv.addComment(comment if comment else '')
-                    commentPhase = 'arg'
+                    commentPhase = 'request'
                     comment = None
                     commentLines = []
-                elif commentPhase == 'arg':
-                    srv.arg.addComment(comment if comment else '')
+                elif commentPhase == 'request':
+                    srv.request.addComment(comment if comment else '')
                     commentPhase = 'end'
                     comment = None
                     commentLines = []
-                elif commentPhase == 'returns':
-                    srv.returns.addComment(comment if comment else '')
+                elif commentPhase == 'response':
+                    srv.response.addComment(comment if comment else '')
                     commentPhase = 'end'
                     
                 if line.startswith('-'):
                     comment = None
-                    commentPhase = 'returns'
+                    commentPhase = 'response'
                     argparsing = False
                     continue
 
@@ -247,9 +246,9 @@ class Parser(object):
                     raise InvalidArgument('Invalid Syntax(lineNum=%s, line="%s",ms="%s", len(line)=%d)' % (i, line, ms, len(line)))
                 m = MsgMember(MsgType(ms[0]), ms[1], value_comment)
                 if argparsing:
-                    srv.arg.addMember(m)
+                    srv.request.addMember(m)
                 else:
-                    srv.returns.addMember(m)
+                    srv.response.addMember(m)
             except MsgException, e:
                 traceback.print_exc()
                 e.addInfo(i, line)

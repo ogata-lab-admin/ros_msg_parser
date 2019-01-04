@@ -10,11 +10,11 @@ class TestParser(unittest.TestCase):
 
         s = '''# Test Parser Srv Data
 
-# This is argument comment
+# This is request comment
 float32 foo # Foo Comment
 int32 goo # Hoge Comment
 ---
-# This is return value comment
+# This is response comment
 bool success # Return Value
 string message # Return Message
 '''
@@ -26,33 +26,33 @@ string message # Return Message
 
     def test_returnvalue_comment(self):
         m = self._m
-        self.assertEqual(m.arg.comment, 'This is argument comment')
+        self.assertEqual(m.request.comment, 'This is request comment')
 
     def test_value_comment(self):
         m = self._m
-        f = m.arg.members.findByName('foo')
+        f = m.request.members.findByName('foo')
         self.assertEqual(f.comment, 'Foo Comment')
         
     def test_foo(self):
         m = self._m
-        f = m.arg.members.findByName('foo')
+        f = m.request.members.findByName('foo')
         self.assertIsNotNone(f)
         self.assertEqual(str(f.type), 'float32')
 
     def test_goo(self):
         m = self._m
-        g = m.arg.members.findByName('goo')
+        g = m.request.members.findByName('goo')
         self.assertIsNotNone(g)
         self.assertEqual(str(g.type), 'int32')
 
     def test_hoo(self):
         m = self._m
-        h = m.arg.members.findByName('hoo')
+        h = m.request.members.findByName('hoo')
         self.assertIsNone(h)
 
-    def test_returnvalue_comment(self):
+    def test_response_comment(self):
         m = self._m
-        self.assertEqual(m.returns.comment, 'This is return value comment')
+        self.assertEqual(m.response.comment, 'This is response comment')
         
     def test_packageName(self):
         m = self._m
@@ -62,9 +62,9 @@ string message # Return Message
         m = self._m
         self.assertEqual(m.name, 'hogeType')
 
-    def test_return_value(self):
+    def test_response_value(self):
         m = self._m
-        r = m.returns.members.findByName('success')
+        r = m.response.members.findByName('success')
         self.assertEqual(r.type.name, 'bool')
         self.assertEqual(r.comment, 'Return Value')
 
