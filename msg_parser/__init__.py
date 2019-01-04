@@ -166,8 +166,8 @@ class SrvObject(object):
         self._name = name
         self._pkgName = pkgName
         self._comment = ''
-        self.request = MsgObject(pkgName, name + '_arg')
-        self.response = MsgObject(pkgName, name + '_returns')
+        self.request = MsgObject(pkgName, name + '_request')
+        self.response = MsgObject(pkgName, name + '_response')
         
     def addComment(self, c):
         self._comment = c
@@ -185,6 +185,33 @@ class SrvObject(object):
         return self._name
 
 
+class ActionObject(object):
+
+    def __init__(self, pkgName, name):
+        self._name = name
+        self._pkgName = pkgName
+        self._comment = ''
+        self.goal = MsgObject(pkgName, name + '_goal')
+        self.result = MsgObject(pkgName, name + '_result')
+        self.feedback = MsgObject(pkgName, name + '_feedback')
+        
+    def addComment(self, c):
+        self._comment = c
+
+    @property
+    def comment(self):
+        return self._comment
+    
+    @property
+    def packageName(self):
+        return self._pkgName
+
+    @property
+    def name(self):
+        return self._name
+
+
+
 class Parser(object):
 
     def __init__(self):
@@ -196,6 +223,80 @@ class Parser(object):
             raise InvalidArgument('Invalid Package/Filename format(%s)' % name)
         return p
     
+    def parse_action_str(self, name, argstr):
+        p = self.__parse_name(name)
+        m = ActionObject(p[0], p[1])
+
+        comment = None
+        commentLines = []
+        commentPhase = 'action'
+        parsePhase = 'goal'
+        for i, line in enumerate(argstr.split('\n')):
+            try:
+                line = line.strip()
+                if line.startswith('#') and (not commentPhase.startswith('end')):
+                    commentLines.append(line[1:].strip())
+                    continue
+
+                if len(commentLines) == 0 and len(line) == 0:
+                    continue
+                
+                if comment is None:
+                    comment = '\n'.join(commentLines)
+                
+                if commentPhase == 'action':
+                    m.addComment(comment if comment else '')
+                    commentPhase = 'goal'
+                    comment = None
+                    commentLines = []
+                elif commentPhase == 'goal':
+                    m.goal.addComment(comment if comment else '')
+                    commentPhase = 'end_goal'
+                    comment = None
+                    commentLines = []
+                elif commentPhase == 'result':
+                    m.result.addComment(comment if comment else '')
+                    commentPhase = 'end_result'
+                    comment = None
+                    commentLines = []
+                elif commentPhase == 'feedback':
+                    m.feedback.addComment(comment if comment else '')
+                    commentPhase = 'end'
+                    
+                if line.startswith('-'):
+                    comment = None
+                    if parsePhase == 'goal': parsePhase = 'result'
+                    elif parsePhase == 'result': parsePhase = 'feedback'
+                    if commentPhase == 'end_result' or commentPhase == 'result':
+                        commentPhase = 'feedback'
+                    elif commentPhase == 'goal' or commentPhase == 'end_goal':
+                        commentPhase = 'result'
+                    continue
+
+                if len(line) == 0: continue
+
+                value_comment = ''
+                tokens = line.strip().split('#')
+                if len(tokens) > 1:
+                    line = tokens[0]
+                    value_comment = ''.join(tokens[1:]).strip()
+                ms = line.strip().split()
+                if len(ms) != 2:
+                    raise InvalidArgument('Invalid Syntax(lineNum=%s, line="%s",ms="%s", len(line)=%d)' % (i, line, ms, len(line)))
+                mem = MsgMember(MsgType(ms[0]), ms[1], value_comment)
+                if parsePhase == 'goal':
+                    m.goal.addMember(mem)
+                elif parsePhase == 'result':
+                    m.result.addMember(mem)
+                elif parsePhase == 'feedback':
+                    m.feedback.addMember(mem)
+            except MsgException, e:
+                traceback.print_exc()
+                e.addInfo(i, line)
+                raise e
+
+        return m
+
     def parse_srv_str(self, name, argstr):
         p = self.__parse_name(name)
         srv = SrvObject(p[0], p[1])
@@ -209,6 +310,9 @@ class Parser(object):
                 line = line.strip()
                 if line.startswith('#') and (not commentPhase is 'end'):
                     commentLines.append(line[1:].strip())
+                    continue
+
+                if len(commentLines) == 0 and len(line) == 0:
                     continue
                 
                 if comment is None:
@@ -256,6 +360,7 @@ class Parser(object):
 
         return srv
 
+
     def parse_str(self, name, argstr):
         p = self.__parse_name(name)
 
@@ -269,6 +374,9 @@ class Parser(object):
                     commentLines.append(line[1:].strip())
                     continue
                 
+                if len(commentLines) == 0 and len(line) == 0:
+                    continue
+
                 if len(line) == 0: # empty line
                     if comment is None:
                         comment = '\n'.join(commentLines)
