@@ -69,8 +69,9 @@ class MsgMemberList(object):
 class MsgType(object):
     def __init__(self, name):
         self._is_primitive = False
-        self.__check_typename(name)
-        self._name = name
+        self._check_typename(name)
+        self._pkgName = '' if self.is_primitive else name.split('/')[0]
+        self._name = name if self.is_primitive else name.split('/')[1]
     
     @property
     def is_primitive(self):
@@ -78,21 +79,17 @@ class MsgType(object):
 
     @property
     def fullName(self):
-        return self._name
+        return str(self)
 
     @property
     def name(self):
-        if self.is_primitive:
-            return self._name
-        return self._name.split('/')[1]
+        return self._name
 
     @property
     def packageName(self):
-        if self.is_primitive:
-            return None
-        return self._name.split('/')[0]
+        return self._pkgName
 
-    def __check_typename(self, n):
+    def _check_typename(self, n):
         if n.find('/') >= 0:
             ns = n.split('/')
             if len(ns) < 2:
@@ -107,7 +104,8 @@ class MsgType(object):
         return
 
     def __str__(self):
-        return self._name
+        if self.is_primitive: return self.name
+        return self.packageName + '/' + self.name
 
 
 class MsgMember(object):
@@ -129,11 +127,21 @@ class MsgMember(object):
     def comment(self):
         return self._comment
     
-class MsgObject(object):
+class ROSStruct(MsgType):
 
-    def __init__(self, pkgName, name):
-        self._name = name
-        self._pkgName = pkgName
+    def __init__(self, pkgName, name=None):
+        self._is_primitive = False
+        if name is None: # only one value passed.
+            self._check_typename(pkgName)
+            if self._is_primitive:
+                name = pkgName
+                pkgName = ''
+            else:
+                name = pkgName.split('/')[1]
+                pkgName = pkgName.split('/')[0]
+        MsgType.__init__(self, name if self._is_primitive else pkgName + '/' + name)
+        # self._name = name
+        # self._pkgName = pkgName
         self._members = MsgMemberList()
         self._comment = ''
 
@@ -148,14 +156,6 @@ class MsgObject(object):
         return self._comment
     
     @property
-    def packageName(self):
-        return self._pkgName
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
     def members(self):
         return self._members
 
@@ -166,8 +166,8 @@ class SrvObject(object):
         self._name = name
         self._pkgName = pkgName
         self._comment = ''
-        self.request = MsgObject(pkgName, name + '_request')
-        self.response = MsgObject(pkgName, name + '_response')
+        self.request = ROSStruct(pkgName, name + '_request')
+        self.response = ROSStruct(pkgName, name + '_response')
         
     def addComment(self, c):
         self._comment = c
@@ -191,9 +191,9 @@ class ActionObject(object):
         self._name = name
         self._pkgName = pkgName
         self._comment = ''
-        self.goal = MsgObject(pkgName, name + '_goal')
-        self.result = MsgObject(pkgName, name + '_result')
-        self.feedback = MsgObject(pkgName, name + '_feedback')
+        self.goal = ROSStruct(pkgName, name + '_goal')
+        self.result = ROSStruct(pkgName, name + '_result')
+        self.feedback = ROSStruct(pkgName, name + '_feedback')
         
     def addComment(self, c):
         self._comment = c
@@ -283,7 +283,7 @@ class Parser(object):
                 ms = line.strip().split()
                 if len(ms) != 2:
                     raise InvalidArgument('Invalid Syntax(lineNum=%s, line="%s",ms="%s", len(line)=%d)' % (i, line, ms, len(line)))
-                mem = MsgMember(MsgType(ms[0]), ms[1], value_comment)
+                mem = MsgMember(ROSStruct(ms[0]), ms[1], value_comment)
                 if parsePhase == 'goal':
                     m.goal.addMember(mem)
                 elif parsePhase == 'result':
@@ -348,7 +348,7 @@ class Parser(object):
                 ms = line.strip().split()
                 if len(ms) != 2:
                     raise InvalidArgument('Invalid Syntax(lineNum=%s, line="%s",ms="%s", len(line)=%d)' % (i, line, ms, len(line)))
-                m = MsgMember(MsgType(ms[0]), ms[1], value_comment)
+                m = MsgMember(ROSStruct(ms[0]), ms[1], value_comment)
                 if argparsing:
                     srv.request.addMember(m)
                 else:
@@ -364,7 +364,7 @@ class Parser(object):
     def parse_str(self, name, argstr):
         p = self.__parse_name(name)
 
-        msg = MsgObject(p[0], p[1])
+        msg = ROSStruct(p[0], p[1])
         comment = None
         commentLines = []
         for i, line in enumerate(argstr.split('\n')):
@@ -392,7 +392,7 @@ class Parser(object):
                 ms = line.strip().split()
                 if len(ms) != 2:
                     raise InvalidArgument('Invalid Syntax(line=%s)' % i)
-                m = MsgMember(MsgType(ms[0]), ms[1], value_comment)
+                m = MsgMember(ROSStruct(ms[0]), ms[1], value_comment)
                 msg.addMember(m)
             except MsgException, e:
                 e.addInfo(i, line)
@@ -400,3 +400,5 @@ class Parser(object):
         msg.addComment(comment if comment else '')
         return msg
 
+    def parse_class(self, cls):
+        return self.parse_str(cls._type, cls._full_text)
