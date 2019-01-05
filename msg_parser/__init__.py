@@ -98,9 +98,9 @@ class MsgType(object):
                 raise InvalidInnerTypeName()
             return
         
-        if not n in _primitives:
-            raise InvalidPrimitiveTypeName
-        self._is_primitive = True
+        if n in _primitives:
+#            raise InvalidPrimitiveTypeName
+            self._is_primitive = True
         return
 
     def __str__(self):
@@ -167,8 +167,12 @@ class ROSStruct(MsgType):
                 name = pkgName
                 pkgName = ''
             else:
-                name = pkgName.split('/')[1]
-                pkgName = pkgName.split('/')[0]
+                if len(pkgName.split('/')) == 2:
+                    name = pkgName.split('/')[1]
+                    pkgName = pkgName.split('/')[0]
+                else:
+                    name = pkgName
+                    pkgName = ''
         MsgType.__init__(self, name if self._is_primitive else pkgName + '/' + name)
         # self._name = name
         # self._pkgName = pkgName
@@ -403,8 +407,9 @@ class Parser(object):
         for i, line in enumerate(argstr.split('\n')):
             try:
                 line = line.strip()
-                if line.startswith('#') and comment is None:
-                    commentLines.append(line[1:].strip())
+                if line.startswith('#'):
+                    if comment is None:
+                        commentLines.append(line[1:].strip())
                     continue
                 
                 if len(commentLines) == 0 and len(line) == 0:
@@ -433,7 +438,8 @@ class Parser(object):
                 
                 ms = line.strip().split()
                 if len(ms) != 2:
-                    raise InvalidArgument('Invalid Syntax(line=%s)' % i)
+                    print 'argstr:', argstr
+                    raise InvalidArgument('Invalid Syntax(line=%s, linedata="%s", value_comment="%s")' % (i, line, value_comment))
                 if not is_constant_definition:
                     m = MsgMember(self.create_ros_struct(ms[0], typeDict), ms[1], value_comment)
                     msg.addMember(m)
@@ -446,7 +452,7 @@ class Parser(object):
         msg.addComment(comment if comment else '')
         return msg
 
-    def create_ros_struct(self, typeName, typeDict={}):
+    def create_ros_struct(self, typeName, typeDict={}, current_package=''):
         if typeName in _primitives:
             return ROSStruct(typeName)
         else:
@@ -480,3 +486,16 @@ class Parser(object):
     def parse_msg_class(self, cls):
         clsText, typeDict = self.parse_type_dictionary(cls._full_text)
         return self.parse_msg_str(cls._type, clsText, typeDict)
+
+    def parse_srv_class(self, cls):
+        p = self.__parse_name(cls._type)
+        srv = SrvObject(p[0], p[1])
+        srv.request = self.parse_msg_class(cls._request_class)
+        srv.response = self.parse_msg_class(cls._response_class)
+        return srv
+
+    def parse_action_class(self, cls):
+
+        clsText, typeDict = self.parse_type_dictionary(cls._full_text)
+        # return self.parse_action_str(cls._type, clsText, typeDict)
+        return self.create_ros_struct(cls._type + 'Goal', typeDict)

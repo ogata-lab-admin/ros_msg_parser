@@ -13,6 +13,23 @@ float32 fee # Fee comment
 int32   bee # Bee comment'''
     _type = 'test_pkg_msgs/ROSMemberMock'
 
+class ROSMember2Mock(object):
+    def __init__(self):
+        self.tee = 0
+        self.dee = 0.0
+
+    _full_text = '''# Test Parser Member Data 2
+float32 tee # Fee comment
+int32   dee # Bee comment'''
+    _type = 'test_pkg_msgs/ROSMember2Mock'
+
+class ROSSrvMock(object):
+    def __init__(self):
+        pass
+
+    _request_class = ROSMemberMock
+    _response_class = ROSMember2Mock
+
 class ROSMsgMock(object):
     def __init__(self):
         self.foo = 0.0
