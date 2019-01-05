@@ -401,4 +401,8 @@ class Parser(object):
         return msg
 
     def parse_class(self, cls):
-        return self.parse_str(cls._type, cls._full_text)
+        obj = self.parse_str(cls._type, cls._full_text)
+        def check_member(m):
+            if not m.type.is_primitive:
+                atr = getattr(cls, m.name)
+        obj.members.foreach(check_member)
