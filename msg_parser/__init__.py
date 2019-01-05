@@ -365,6 +365,9 @@ class Parser(object):
 
 
     def parse_str(self, name, argstr, typeDict={}):
+        return self.parse_msg_str(name, argstr, typeDict)
+
+    def parse_msg_str(self, name, argstr, typeDict={}):    
         p = self.__parse_name(name)
 
         msg = ROSStruct(p[0], p[1])
@@ -395,7 +398,7 @@ class Parser(object):
                 ms = line.strip().split()
                 if len(ms) != 2:
                     raise InvalidArgument('Invalid Syntax(line=%s)' % i)
-                m = MsgMember(create_ros_struct(ms[0]), ms[1], value_comment)
+                m = MsgMember(self.create_ros_struct(ms[0], typeDict), ms[1], value_comment)
                 msg.addMember(m)
             except MsgException, e:
                 e.addInfo(i, line)
@@ -404,17 +407,19 @@ class Parser(object):
         return msg
 
     def create_ros_struct(self, typeName, typeDict={}):
-        return ROSStruct(typeName)
+        if typeName in _primitives:
+            return ROSStruct(typeName)
+        else:
+            if typeName in typeDict.keys():
+                return self.parse_msg_str(typeName, typeDict[typeName], typeDict)
+            else:
+                return ROSStruct(typeName)
 
     def parse_class(self, cls):
         full_text = cls._full_text
-        ft = full_text.split('================================================================================')
-        cls_text = ft[0]
-        
-        obj = self.parse_str(cls._type, cls_text)
-
+        ft = [f for f in full_text.split('=') if len(f) > 0]
+        subtypes = {}
         if len(ft) > 1:
-            subtypes = {}
             for f in ft[1:]:
                 lines = [l for l in f.split('\n') if len(l.strip()) > 0]
                 if not lines[0].startswith('MSG:'):
@@ -422,12 +427,7 @@ class Parser(object):
                 name = lines[0][4:].strip()
                 value = '\n'.join(lines[1:])
                 subtypes[name] = value
-            
-            def check_member(m):
-                if not m.type.is_primitive:
-                    print m.type.fullName
-                    m.setType(self.parse_str(m.type.fullName, subtypes[m.type.fullName]))
-                    #atr = getattr(cls, m.name)
-                    # print atr.type
-            obj.members.forEach(check_member)
-            return obj
+        
+        cls_text = ft[0]
+        obj = self.parse_str(cls._type, cls_text, subtypes)
+        return obj
