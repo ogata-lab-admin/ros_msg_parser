@@ -364,7 +364,7 @@ class Parser(object):
         return srv
 
 
-    def parse_str(self, name, argstr):
+    def parse_str(self, name, argstr, typeDict={}):
         p = self.__parse_name(name)
 
         msg = ROSStruct(p[0], p[1])
@@ -395,13 +395,16 @@ class Parser(object):
                 ms = line.strip().split()
                 if len(ms) != 2:
                     raise InvalidArgument('Invalid Syntax(line=%s)' % i)
-                m = MsgMember(ROSStruct(ms[0]), ms[1], value_comment)
+                m = MsgMember(create_ros_struct(ms[0]), ms[1], value_comment)
                 msg.addMember(m)
             except MsgException, e:
                 e.addInfo(i, line)
                 raise e
         msg.addComment(comment if comment else '')
         return msg
+
+    def create_ros_struct(self, typeName, typeDict={}):
+        return ROSStruct(typeName)
 
     def parse_class(self, cls):
         full_text = cls._full_text
