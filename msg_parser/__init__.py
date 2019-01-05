@@ -123,6 +123,9 @@ class MsgMember(object):
     def type(self):
         return self._type
 
+    def setType(self, t):
+        self._type = t
+
     @property
     def comment(self):
         return self._comment
@@ -401,8 +404,27 @@ class Parser(object):
         return msg
 
     def parse_class(self, cls):
-        obj = self.parse_str(cls._type, cls._full_text)
-        def check_member(m):
-            if not m.type.is_primitive:
-                atr = getattr(cls, m.name)
-        obj.members.foreach(check_member)
+        full_text = cls._full_text
+        ft = full_text.split('================================================================================')
+        cls_text = ft[0]
+        
+        obj = self.parse_str(cls._type, cls_text)
+
+        if len(ft) > 1:
+            subtypes = {}
+            for f in ft[1:]:
+                lines = [l for l in f.split('\n') if len(l.strip()) > 0]
+                if not lines[0].startswith('MSG:'):
+                    raise InvalidArgument('This member is not available to parse')
+                name = lines[0][4:].strip()
+                value = '\n'.join(lines[1:])
+                subtypes[name] = value
+            
+            def check_member(m):
+                if not m.type.is_primitive:
+                    print m.type.fullName
+                    m.setType(self.parse_str(m.type.fullName, subtypes[m.type.fullName]))
+                    #atr = getattr(cls, m.name)
+                    # print atr.type
+            obj.members.forEach(check_member)
+            return obj

@@ -22,7 +22,11 @@ class ROSMsgMock(object):
 float32 foo # Foo Comment
 int32 goo # Goo Comment
 test_pkg_msgs/ROSMemberMock hoge # Hoge Comment
-'''
+================================================================================
+MSG: test_pkg_msgs/ROSMemberMock
+# Test Parser Member Data
+float32 fee # Fee comment
+int32   bee # Bee comment'''
     _type = 'test_pkg/ROSMsgMock'
 
 
@@ -70,8 +74,10 @@ class TestParser(unittest.TestCase):
     def test_hoge(self):
         m = self._m
         h = m.members.findByName('hoge')
-        print h
-        print dir(h)
         self.assertEqual(h.type.fullName, 'test_pkg_msgs/ROSMemberMock')
+
+        f = h.type.members.findByName('fee')
+        self.assertIsNotNone(f)
+        
 if __name__ == '__main__':
     uniittest.main()
