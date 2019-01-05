@@ -10,8 +10,11 @@ class TestParser(unittest.TestCase):
 
         s = '''# Test Parser Msg Data
 float32 foo # Foo Comment
-int32 goo # Hoge Comment'''
-        self._m = p.parse_str('test_pkg/hogeType', s)
+int32 goo # Hoge Comment
+uint32 a = 1 # the first data
+uint32 b = 2 # the second data
+uint32 c = 3 # the third data'''
+        self._m = p.parse_msg_str('test_pkg/hogeType', s)
 
     def test_comment(self):
         m = self._m
@@ -46,6 +49,13 @@ int32 goo # Hoge Comment'''
     def test_name(self):
         m = self._m
         self.assertEqual(m.name, 'hogeType')
+
+    def test_const_a(self):
+        m = self._m
+        a = m.members.findByName('a')
+        self.assertEqual(a.type.fullName, 'uint32')
+        self.assertEqual(a.value_str, '1')
+        self.assertEqual(a.value, 1)
 
 if __name__ == '__main__':
     uniittest.main()

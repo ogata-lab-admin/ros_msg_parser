@@ -57,8 +57,8 @@ class TestParser(unittest.TestCase):
     def setUp(self):
         p = msg_parser.Parser()
 
-        self._m = p.parse_class(ROSMsgMock)
-        self._d = p.parse_class(ROSDeepMsgMock)
+        self._m = p.parse_msg_class(ROSMsgMock)
+        self._d = p.parse_msg_class(ROSDeepMsgMock)
 
     def test_comment(self):
         m = self._m

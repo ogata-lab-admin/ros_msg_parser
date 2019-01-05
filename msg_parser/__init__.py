@@ -110,10 +110,11 @@ class MsgType(object):
 
 class MsgMember(object):
     
-    def __init__(self, type, name, comment=''):
+    def __init__(self, type, name, comment='', constant_value=None):
         self._type = type
         self._name = name
         self._comment = comment
+        self._value = constant_value
 
     @property
     def name(self):
@@ -129,6 +130,32 @@ class MsgMember(object):
     @property
     def comment(self):
         return self._comment
+
+    @property
+    def is_constant(self):
+        return not self._value is None
+
+    @property
+    def value_str(self):
+        return self._value
+
+    @property
+    def value(self):
+        if not self.type.is_primitive:
+            return self._value
+        if self.type.fullName.find('int') >= 0:
+            return int(self._value)
+        elif self.type.fullName.find('float') >= 0:
+            return float(self._value)
+        elif self.type.fullName.find('bool') >= 0:
+            return self._value == 'true' or self._value == 'True' or self._value == 'TRUE'
+        elif self.type.fullName == 'string':
+            return self._value
+        else:
+            return self._value
+            
+            
+            
     
 class ROSStruct(MsgType):
 
@@ -226,7 +253,7 @@ class Parser(object):
             raise InvalidArgument('Invalid Package/Filename format(%s)' % name)
         return p
     
-    def parse_action_str(self, name, argstr):
+    def parse_action_str(self, name, argstr, typeDict={}):
         p = self.__parse_name(name)
         m = ActionObject(p[0], p[1])
 
@@ -286,7 +313,7 @@ class Parser(object):
                 ms = line.strip().split()
                 if len(ms) != 2:
                     raise InvalidArgument('Invalid Syntax(lineNum=%s, line="%s",ms="%s", len(line)=%d)' % (i, line, ms, len(line)))
-                mem = MsgMember(ROSStruct(ms[0]), ms[1], value_comment)
+                mem = MsgMember(self.create_ros_struct(ms[0], typeDict), ms[1], value_comment)
                 if parsePhase == 'goal':
                     m.goal.addMember(mem)
                 elif parsePhase == 'result':
@@ -300,7 +327,7 @@ class Parser(object):
 
         return m
 
-    def parse_srv_str(self, name, argstr):
+    def parse_srv_str(self, name, argstr, typeDict={}):
         p = self.__parse_name(name)
         srv = SrvObject(p[0], p[1])
 
@@ -351,7 +378,7 @@ class Parser(object):
                 ms = line.strip().split()
                 if len(ms) != 2:
                     raise InvalidArgument('Invalid Syntax(lineNum=%s, line="%s",ms="%s", len(line)=%d)' % (i, line, ms, len(line)))
-                m = MsgMember(ROSStruct(ms[0]), ms[1], value_comment)
+                m = MsgMember(self.create_ros_struct(ms[0], typeDict=typeDict), ms[1], value_comment)
                 if argparsing:
                     srv.request.addMember(m)
                 else:
@@ -395,11 +422,24 @@ class Parser(object):
                 if len(tokens) > 1:
                     line = tokens[0]
                     value_comment = tokens[1].strip()
+                tokens = line.strip().split('=')
+                is_constant_definition = False
+                constant_value = ''
+                if len(tokens) > 1: # Constant Definition
+                    line = tokens[0]
+                    is_constant_definition = True
+                    constant_value = tokens[1].strip()
+                    pass
+                
                 ms = line.strip().split()
                 if len(ms) != 2:
                     raise InvalidArgument('Invalid Syntax(line=%s)' % i)
-                m = MsgMember(self.create_ros_struct(ms[0], typeDict), ms[1], value_comment)
-                msg.addMember(m)
+                if not is_constant_definition:
+                    m = MsgMember(self.create_ros_struct(ms[0], typeDict), ms[1], value_comment)
+                    msg.addMember(m)
+                else:
+                    m = MsgMember(self.create_ros_struct(ms[0], typeDict), ms[1], value_comment, constant_value)
+                    msg.addMember(m)
             except MsgException, e:
                 e.addInfo(i, line)
                 raise e
@@ -415,9 +455,17 @@ class Parser(object):
             else:
                 return ROSStruct(typeName)
 
-    def parse_class(self, cls):
-        full_text = cls._full_text
-        ft = [f for f in full_text.split('=') if len(f) > 0]
+    def parse_type_dictionary(self, full_text):
+        ft = []
+        lines = full_text.split('\n')
+        line_buf = []
+        for line in lines:
+            if line.startswith('==='):
+                ft.append('\n'.join(line_buf))
+                line_buf = []
+            else:
+                line_buf.append(line)
+        ft.append('\n'.join(line_buf))
         subtypes = {}
         if len(ft) > 1:
             for f in ft[1:]:
@@ -427,7 +475,8 @@ class Parser(object):
                 name = lines[0][4:].strip()
                 value = '\n'.join(lines[1:])
                 subtypes[name] = value
+        return ft[0], subtypes
         
-        cls_text = ft[0]
-        obj = self.parse_str(cls._type, cls_text, subtypes)
-        return obj
+    def parse_msg_class(self, cls):
+        clsText, typeDict = self.parse_type_dictionary(cls._full_text)
+        return self.parse_msg_str(cls._type, clsText, typeDict)
