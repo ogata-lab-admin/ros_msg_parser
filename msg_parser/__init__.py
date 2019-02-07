@@ -248,7 +248,10 @@ class ActionObject(object):
 
 class Parser(object):
 
-    def __init__(self):
+    def __init__(self, ignore_header=True, ignore_goal_id=False):
+
+        self._ignore_header = ignore_header
+        self._ignore_goal_id = ignore_goal_id
         pass
 
     def __parse_name(self, name):
@@ -274,6 +277,14 @@ class Parser(object):
 
                 if len(commentLines) == 0 and len(line) == 0:
                     continue
+
+                if self._ignore_header:
+                    if line.startswith('Header'):
+                        continue
+                if self._ignore_goal_id:
+                    if line.startswith('actionlib_msgs/GoalID'):
+                        continue
+                    
                 
                 if comment is None:
                     comment = '\n'.join(commentLines)
@@ -398,7 +409,8 @@ class Parser(object):
     def parse_str(self, name, argstr, typeDict={}):
         return self.parse_msg_str(name, argstr, typeDict)
 
-    def parse_msg_str(self, name, argstr, typeDict={}):    
+    def parse_msg_str(self, name, argstr, typeDict={}):
+        print 'parse_msg_str(', name,',ignore_header=', self._ignore_header, ')'
         p = self.__parse_name(name)
 
         msg = ROSStruct(p[0], p[1])
@@ -406,6 +418,7 @@ class Parser(object):
         commentLines = []
         for i, line in enumerate(argstr.split('\n')):
             try:
+                orgLine = line
                 line = line.strip()
                 if line.startswith('#'):
                     if comment is None:
@@ -438,13 +451,21 @@ class Parser(object):
                 
                 ms = line.strip().split()
                 if len(ms) != 2:
-                    print 'argstr:', argstr
-                    raise InvalidArgument('Invalid Syntax(line=%s, linedata="%s", value_comment="%s")' % (i, line, value_comment))
+                    # print 'argstr:', argstr
+                    raise InvalidArgument('Invalid Syntax(line=%s, linedata="%s", len(line)="%d", value_comment="%s")' % (i, orgLine, len(line), value_comment))
                 if not is_constant_definition:
-                    m = MsgMember(self.create_ros_struct(ms[0], typeDict), ms[1], value_comment)
+                    if self._ignore_header:
+                        if line.startswith('Header'):
+                            continue
+                    if self._ignore_goal_id:
+                        #print line
+                        if line.startswith('actionlib_msgs/GoalID'):
+                            continue
+                    print 'MsgMember creating...', ms
+                    m = MsgMember(self.create_ros_struct(ms[0], typeDict, p[0]), ms[1], value_comment)
                     msg.addMember(m)
                 else:
-                    m = MsgMember(self.create_ros_struct(ms[0], typeDict), ms[1], value_comment, constant_value)
+                    m = MsgMember(self.create_ros_struct(ms[0], typeDict, p[0]), ms[1], value_comment, constant_value)
                     msg.addMember(m)
             except MsgException, e:
                 e.addInfo(i, line)
@@ -453,12 +474,21 @@ class Parser(object):
         return msg
 
     def create_ros_struct(self, typeName, typeDict={}, current_package=''):
+        print 'create_ros_struct(', typeName, ')'
         if typeName in _primitives:
             return ROSStruct(typeName)
         else:
             if typeName in typeDict.keys():
                 return self.parse_msg_str(typeName, typeDict[typeName], typeDict)
+            elif typeName == 'Header':
+                typeName2 = 'std_msgs/Header'
+                return self.parse_msg_str(typeName2, typeDict[typeName2], typeDict)
             else:
+                typeName2 = current_package + '/' + typeName
+                if typeName2 in typeDict.keys():
+                    return self.parse_msg_str(typeName2, typeDict[typeName2], typeDict)
+                else:
+                    print 'No type (', typeName2, ') found.'
                 return ROSStruct(typeName)
 
     def parse_type_dictionary(self, full_text):
@@ -484,7 +514,11 @@ class Parser(object):
         return ft[0], subtypes
         
     def parse_msg_class(self, cls):
+        #print 'parse_msg_class:', cls
         clsText, typeDict = self.parse_type_dictionary(cls._full_text)
+        #print 'subTypes:'
+        #for key, value in typeDict.items():
+        #    print key, ':', value
         return self.parse_msg_str(cls._type, clsText, typeDict)
 
     def parse_srv_class(self, cls):
