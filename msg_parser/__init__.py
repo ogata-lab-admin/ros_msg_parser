@@ -410,7 +410,7 @@ class Parser(object):
         return self.parse_msg_str(name, argstr, typeDict)
 
     def parse_msg_str(self, name, argstr, typeDict={}):
-        print 'parse_msg_str(', name,',ignore_header=', self._ignore_header, ')'
+        # print 'parse_msg_str(', name,',ignore_header=', self._ignore_header, ')'
         p = self.__parse_name(name)
 
         msg = ROSStruct(p[0], p[1])
@@ -461,7 +461,7 @@ class Parser(object):
                         #print line
                         if line.startswith('actionlib_msgs/GoalID'):
                             continue
-                    print 'MsgMember creating...', ms
+                    # print 'MsgMember creating...', ms
                     m = MsgMember(self.create_ros_struct(ms[0], typeDict, p[0]), ms[1], value_comment)
                     msg.addMember(m)
                 else:
@@ -474,7 +474,7 @@ class Parser(object):
         return msg
 
     def create_ros_struct(self, typeName, typeDict={}, current_package=''):
-        print 'create_ros_struct(', typeName, ')'
+        # print 'create_ros_struct(', typeName, ')'
         if typeName in _primitives:
             return ROSStruct(typeName)
         else:
