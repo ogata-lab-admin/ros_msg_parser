@@ -335,7 +335,7 @@ class Parser(object):
                     m.result.addMember(mem)
                 elif parsePhase == 'feedback':
                     m.feedback.addMember(mem)
-            except MsgException, e:
+            except MsgException as e:
                 traceback.print_exc()
                 e.addInfo(i, line)
                 raise e
@@ -398,7 +398,7 @@ class Parser(object):
                     srv.request.addMember(m)
                 else:
                     srv.response.addMember(m)
-            except MsgException, e:
+            except MsgException as e:
                 traceback.print_exc()
                 e.addInfo(i, line)
                 raise e
@@ -467,7 +467,7 @@ class Parser(object):
                 else:
                     m = MsgMember(self.create_ros_struct(ms[0], typeDict, p[0]), ms[1], value_comment, constant_value)
                     msg.addMember(m)
-            except MsgException, e:
+            except MsgException as e:
                 e.addInfo(i, line)
                 raise e
         msg.addComment(comment if comment else '')
@@ -488,7 +488,7 @@ class Parser(object):
                 if typeName2 in typeDict.keys():
                     return self.parse_msg_str(typeName2, typeDict[typeName2], typeDict)
                 else:
-                    print 'No type (', typeName2, ') found.'
+                    print('No type (', typeName2, ') found.')
                 return ROSStruct(typeName)
 
     def parse_type_dictionary(self, full_text):

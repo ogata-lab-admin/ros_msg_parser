@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 import sys
 
 setup(name='msg_parser', 
-      version='0.0.1',
+      version='0.0.2',
       url = 'http://ysuga.net/',
       author = 'ysuga',
       author_email = 'ysuga@ysuga.net',
